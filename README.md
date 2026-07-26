@@ -4,7 +4,13 @@ Browser playground for organic generative sketches: pick from a gallery, tweak w
 
 No accounts. No server. No paste-to-auto-sliders (yet).
 
-## Run
+## Live site
+
+**https://deesatzed.github.io/organimation/**
+
+(Deployed from `main` via GitHub Actions → GitHub Pages.)
+
+## Run locally
 
 ```bash
 npm install

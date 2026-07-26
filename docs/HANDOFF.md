@@ -67,4 +67,4 @@ npm run smoke
 - [x] Acceptance O1–O11  
 - [x] Selfcheck + build + smoke green after residual pass  
 - [x] Git remote / first commit (`main` @ https://github.com/deesatzed/organimation.git)  
-- [ ] Public deploy (user decision)  
+- [x] Public deploy — GitHub Pages: https://deesatzed.github.io/organimation/ (Actions workflow)  
