@@ -12,7 +12,7 @@
 |----|---------|--------|----------|
 | O1 | Vite+TS project builds | **PASS** | `npm run build` exit 0; `dist/` emitted |
 | O2 | Dev/preview serves app shell | **PASS** | Preview HTTP 200; smoke loads gallery without page errors |
-| O3 | ≥3 sketches openable | **PASS** | Registry: `creature-flow`, `lozi-flow`, `ripple-field`; smoke opens each; A→B→A single canvas |
+| O3 | ≥3 sketches openable | **PASS** | Registry: 5 sketches (`creature-flow`, `lozi-flow`, `ripple-field`, `orbital-rects`, `wave-lattice`); smoke opens each; A→B→A single canvas |
 | O4 | Named params live-update | **PASS** | Tweakpane in `ParamController`; sketches read `getParams()` each frame |
 | O5 | Randomize in ranges | **PASS** | `AppState.selfcheck` 20×; smoke Randomize updates hash `p=` |
 | O6 | Reset restores defaults | **PASS** | Selfcheck defaults; smoke Reset |
@@ -60,8 +60,18 @@ npm run preview   # separate terminal
 npm run smoke
 ```
 
+## Post-acceptance residual (2026-07-26 later)
+
+| Item | Result |
+|------|--------|
+| Sketches 4–5 (`orbital-rects`, `wave-lattice`) | Done |
+| Pause/Play + `prefers-reduced-motion` | Done |
+| Mobile sticky toolbar / safe-area / skip-link | Done |
+| PR CI workflow (`.github/workflows/ci.yml`) | Done |
+| GIF / paste auto-sliders | Still deferred (needs new scope) |
+
 ## Verdict
 
 **All O1–O11 PASS** with integration cases PASS.  
-PLAN_v1 Steps 1–14 complete. Residual verification + handoff complete.  
+PLAN_v1 Steps 1–14 complete. Residual content/a11y/CI complete.  
 Not claiming broader production readiness beyond this acceptance bar.

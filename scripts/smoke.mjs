@@ -36,7 +36,7 @@ page.on('console', (msg) => {
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('.gallery-card', { timeout: 10000 });
 const cards = await page.locator('.gallery-card').count();
-assert(cards >= 3, `gallery cards ${cards}`);
+assert(cards >= 5, `gallery cards ${cards} (expected ≥5)`);
 
 // --- Integration: Switch A→B→A, single canvas ---
 await openCard(page, 0);
@@ -87,6 +87,14 @@ assert(hashReloaded.includes('p='), 'reload keeps params');
 // Reset
 await page.getByRole('button', { name: 'Reset' }).click();
 await page.waitForTimeout(200);
+
+// Pause / Play control present
+const pause = page.getByRole('button', { name: /Pause|Play/ });
+await pause.click();
+await page.waitForTimeout(100);
+const pauseLabel = await pause.innerText();
+assert(pauseLabel === 'Play' || pauseLabel === 'Pause', `pause label ${pauseLabel}`);
+await pause.click();
 
 // PNG export actually downloads
 const downloadPromise = page.waitForEvent('download', { timeout: 10000 });

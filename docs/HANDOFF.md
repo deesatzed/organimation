@@ -39,7 +39,7 @@ npm run smoke
 - Hash routes: `#/` gallery, `#/s/:id?v=1&p=k:v,...` studio  
 - `AppState` = single truth for id + params  
 - `P5Host` dynamic-imports p5; dispose on navigate  
-- Sketches: `creature-flow`, `lozi-flow`, `ripple-field`
+- Sketches: `creature-flow`, `lozi-flow`, `ripple-field`, `orbital-rects`, `wave-lattice`
 
 ## Docs
 
@@ -54,10 +54,8 @@ npm run smoke
 
 ## Suggested next work (not started)
 
-1. **Optional content:** sketches 4–5 (still within original 3–5 range preference)  
-2. **Stage 3 polish:** a11y (reduced-motion), keyboard pane, better mobile Tweakpane  
-3. **Deferred backlog:** GIF export, paste-auto-sliders, share analytics — requires new requirements approval  
-4. **Deploy:** static host (`dist/`) — GitHub Pages / Netlify / any static CDN  
+1. **Deferred backlog:** GIF export, paste-auto-sliders, share analytics — requires new requirements approval  
+2. **Optional:** custom domain, deeper keyboard Tweakpane traversal, WEBGL sketch host path
 
 ## Continuity checklist
 

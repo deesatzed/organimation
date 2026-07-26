@@ -41,6 +41,8 @@ export interface SketchModule {
   densityKey: string | null;
   /** Hard max for density param, or null if no density. */
   maxDensity: number | null;
+  /** Optional per-sketch step when auto-clamping density (default AppConfig). */
+  densityClampStep?: number;
   renderPolicy: RenderPolicy;
 }
 

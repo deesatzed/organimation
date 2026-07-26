@@ -45,6 +45,8 @@ npm run selfcheck
 | `creature-flow` | Creature Flow | Community (#つぶやきProcessing); ported/inspired formula from `notes1.md` |
 | `lozi-flow` | Lozi Flow | Inspired by public sketches associated with きんぞ @TakagiHitoshi / Lozi map notes (`notes2.md`) |
 | `ripple-field` | Ripple Field | Original organimation template |
+| `orbital-rects` | Orbital Rects | Inspired by きんぞ @TakagiHitoshi rect-orbit sketches (`notes2.md`) |
+| `wave-lattice` | Wave Lattice | Inspired by ntsutae @ntsutae point-lattice sketches (`notes2.md`) |
 
 Credits also appear in the studio UI under each sketch.
 
@@ -52,13 +54,15 @@ Credits also appear in the studio UI under each sketch.
 
 ## Features (v1)
 
-- Gallery of ≥3 runnable sketches
+- Gallery of 5 runnable sketches
 - English-named sliders (Tweakpane)
-- Randomize / Reset
+- Randomize / Reset / Pause–Play
 - PNG export
 - Share URL (`#/s/<id>?v=1&p=k:v,...`) with immediate **Copy link**
 - Density caps + FPS warning / auto density reduction when slow
+- `prefers-reduced-motion` pauses animation (Play resumes)
 - Desktop-first layout; stacked studio on narrow viewports (44px min controls)
+- CI on PR/push + GitHub Pages deploy from `main`
 
 ## Out of scope (v1)
 

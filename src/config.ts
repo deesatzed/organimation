@@ -7,3 +7,9 @@ export const AppConfig = {
   canvasSize: 400,
   densityClampStep: 500,
 } as const;
+
+/** True when OS/browser asks to minimize motion. */
+export function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}

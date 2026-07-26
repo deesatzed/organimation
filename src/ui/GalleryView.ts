@@ -17,6 +17,7 @@ export function renderGallery(
 
   const grid = document.createElement('div');
   grid.className = 'gallery-grid';
+  grid.setAttribute('role', 'list');
 
   for (const sketch of sketches) {
     grid.appendChild(card(sketch, onOpen));
@@ -29,7 +30,7 @@ function card(sketch: SketchModule, onOpen: (id: string) => void): HTMLElement {
   const el = document.createElement('article');
   el.className = 'gallery-card';
   el.tabIndex = 0;
-  el.setAttribute('role', 'button');
+  el.setAttribute('role', 'listitem');
   el.setAttribute('aria-label', `Open ${sketch.credit.title}`);
 
   const title = document.createElement('h2');

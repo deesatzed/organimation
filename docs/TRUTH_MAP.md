@@ -12,7 +12,7 @@ Evidence-linked classification of UI surfaces. No mock gallery data.
 
 | UI / capability | Class | Proof |
 |-----------------|-------|-------|
-| Gallery list | Live | `listSketches()` → three modules in `src/sketches/registry.ts` |
+| Gallery list | Live | `listSketches()` → five modules in `src/sketches/registry.ts` |
 | Open sketch | Live | Router `#/s/:id` → `AppShell.showStudio` → `P5Host.mount` |
 | Named sliders | Live | `ParamController` + `paramSchema` |
 | Randomize | Live | `randomizeParams` + clamps |
@@ -23,6 +23,8 @@ Evidence-linked classification of UI surfaces. No mock gallery data.
 | FPS banner | Live | `FpsBanner` + `FpsMonitor` |
 | Density auto-clamp | Live | `AppShell.onFrame` when `shouldClampDensity` |
 | Artist credits | Live | `CreditBadge` + README table |
+| Pause / Play | Live | Studio toolbar; freezes `speed` for draw only |
+| Reduced motion | Live | `prefers-reduced-motion` starts paused |
 | Login / cloud save | Absent | Requirements out of scope |
 | Paste tweet code | Absent | Requirements out of scope |
 | GIF export | Absent | Deferred backlog |

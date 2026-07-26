@@ -1,10 +1,10 @@
-import { AppConfig } from '../config';
+import { AppConfig, prefersReducedMotion } from '../config';
 import { appState } from './AppState';
 import { router, type Route } from './Router';
 import { p5Host } from '../runtime/P5Host';
 import { fpsMonitor } from '../runtime/FpsMonitor';
 import { getSketch, listSketches } from '../sketches/registry';
-import { num } from '../sketches/types';
+import { num, type ParamsMap } from '../sketches/types';
 import {
   buildShareUrl,
   encodeHash,
@@ -25,10 +25,13 @@ export class AppShell {
   private fpsEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
   private exportBtn: HTMLButtonElement | null = null;
+  private pauseBtn: HTMLButtonElement | null = null;
   private urlTimer: number | null = null;
   private lastClampAt = 0;
   private suppressUrl = false;
   private currentStudioId: string | null = null;
+  /** User or OS-driven freeze of animation (speed forced to 0). */
+  private paused = false;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -38,6 +41,11 @@ export class AppShell {
     this.root.innerHTML = '';
     this.root.className = 'app-shell';
 
+    const skip = document.createElement('a');
+    skip.href = '#main-content';
+    skip.className = 'skip-link';
+    skip.textContent = 'Skip to content';
+
     const header = document.createElement('header');
     header.className = 'app-header';
     header.innerHTML = `
@@ -46,7 +54,9 @@ export class AppShell {
     `;
 
     this.mainEl = document.createElement('main');
+    this.mainEl.id = 'main-content';
     this.mainEl.className = 'app-main';
+    this.mainEl.tabIndex = -1;
 
     const footer = document.createElement('footer');
     footer.className = 'app-footer';
@@ -55,7 +65,21 @@ export class AppShell {
       <a href="#/">Gallery</a>
     `;
 
-    this.root.append(header, this.mainEl, footer);
+    this.root.append(skip, header, this.mainEl, footer);
+
+    // Respect OS reduced-motion as initial pause
+    if (prefersReducedMotion()) {
+      this.paused = true;
+    }
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onMotion = () => {
+      if (mq.matches) {
+        this.paused = true;
+        this.syncPauseUi();
+        this.flashStatus('Reduced motion on — animation paused. Press Play to animate.');
+      }
+    };
+    mq.addEventListener('change', onMotion);
 
     router.subscribe((route) => this.onRoute(route));
     appState.subscribe(() => this.onStateChange());
@@ -63,6 +87,20 @@ export class AppShell {
 
     // Initial route from current hash (may include share params)
     this.onRoute(router.parse());
+  }
+
+  private liveParams(): ParamsMap {
+    const base = appState.getParams();
+    if (!this.paused) return base;
+    // Freeze time-based motion without mutating stored state / share URL
+    return { ...base, speed: 0 };
+  }
+
+  private syncPauseUi(): void {
+    if (this.pauseBtn) {
+      this.pauseBtn.textContent = this.paused ? 'Play' : 'Pause';
+      this.pauseBtn.setAttribute('aria-pressed', this.paused ? 'true' : 'false');
+    }
   }
 
   private onRoute(route: Route): void {
@@ -127,11 +165,15 @@ export class AppShell {
       this.exportBtn.disabled = true;
     }
 
-    await p5Host.mount(module, this.canvasHost, () => appState.getParams());
+    await p5Host.mount(module, this.canvasHost, () => this.liveParams());
 
     // Only enable export if this studio is still active
     if (this.currentStudioId === sketchId && this.exportBtn) {
       this.exportBtn.disabled = false;
+    }
+    this.syncPauseUi();
+    if (this.paused) {
+      this.flashStatus('Animation paused. Press Play to animate.');
     }
   }
 
@@ -168,6 +210,17 @@ export class AppShell {
       if (mod && this.paneHost) paramController.refreshFromState(appState, mod);
     });
 
+    this.pauseBtn = document.createElement('button');
+    this.pauseBtn.type = 'button';
+    this.pauseBtn.className = 'btn';
+    this.pauseBtn.textContent = this.paused ? 'Play' : 'Pause';
+    this.pauseBtn.setAttribute('aria-pressed', this.paused ? 'true' : 'false');
+    this.pauseBtn.addEventListener('click', () => {
+      this.paused = !this.paused;
+      this.syncPauseUi();
+      this.flashStatus(this.paused ? 'Animation paused.' : 'Animation playing.');
+    });
+
     const copy = document.createElement('button');
     copy.type = 'button';
     copy.className = 'btn btn-primary';
@@ -180,7 +233,7 @@ export class AppShell {
     this.exportBtn.textContent = 'Export PNG';
     this.exportBtn.addEventListener('click', () => this.doExport());
 
-    toolbar.append(back, randomize, reset, copy, this.exportBtn);
+    toolbar.append(back, randomize, reset, this.pauseBtn, copy, this.exportBtn);
 
     this.fpsEl = document.createElement('div');
     this.fpsEl.className = 'fps-banner';
@@ -204,6 +257,7 @@ export class AppShell {
     this.statusEl = document.createElement('div');
     this.statusEl.className = 'status-line';
     this.statusEl.setAttribute('role', 'status');
+    this.statusEl.setAttribute('aria-live', 'polite');
 
     side.append(this.paneHost);
     layout.append(this.canvasHost, side);
@@ -219,6 +273,7 @@ export class AppShell {
     this.fpsEl = null;
     this.statusEl = null;
     this.exportBtn = null;
+    this.pauseBtn = null;
     if (this.urlTimer !== null) {
       window.clearTimeout(this.urlTimer);
       this.urlTimer = null;
@@ -262,7 +317,8 @@ export class AppShell {
     const min = def.min ?? 0;
     if (current <= min) return;
 
-    const next = Math.max(min, current - AppConfig.densityClampStep);
+    const step = mod.densityClampStep ?? AppConfig.densityClampStep;
+    const next = Math.max(min, current - step);
     if (next === current) return;
 
     this.lastClampAt = now;
