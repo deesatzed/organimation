@@ -1,7 +1,11 @@
+import { auroraVeil } from './auroraVeil';
 import { creatureFlow } from './creatureFlow';
+import { inkTendrils } from './inkTendrils';
 import { loziFlow } from './loziFlow';
 import { orbitalRects } from './orbitalRects';
+import { pulseRings } from './pulseRings';
 import { rippleField } from './rippleField';
+import { spiralBloom } from './spiralBloom';
 import { waveLattice } from './waveLattice';
 import type { SketchModule } from './types';
 
@@ -11,6 +15,10 @@ const sketches: SketchModule[] = [
   rippleField,
   orbitalRects,
   waveLattice,
+  spiralBloom,
+  inkTendrils,
+  pulseRings,
+  auroraVeil,
 ];
 
 const byId = new Map<string, SketchModule>(sketches.map((s) => [s.id, s]));

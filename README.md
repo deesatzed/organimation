@@ -47,22 +47,31 @@ npm run selfcheck
 | `ripple-field` | Ripple Field | Original organimation template |
 | `orbital-rects` | Orbital Rects | Inspired by きんぞ @TakagiHitoshi rect-orbit sketches (`notes2.md`) |
 | `wave-lattice` | Wave Lattice | Inspired by ntsutae @ntsutae point-lattice sketches (`notes2.md`) |
+| `spiral-bloom` | Spiral Bloom | Original organimation (phyllotaxis bloom) |
+| `ink-tendrils` | Ink Tendrils | Original organimation |
+| `pulse-rings` | Pulse Rings | Original organimation |
+| `aurora-veil` | Aurora Veil | Original organimation |
 
 Credits also appear in the studio UI under each sketch.
 
 **Note:** Hand-ported sketches are reimplementations with named parameters for remix UI. Original visual formulas belong to their authors/community; organimation does not claim authorship of those formulas.
 
-## Features (v1)
+## Features
 
-- Gallery of 5 runnable sketches
+- Gallery of **9** runnable sketches with **live thumbnails**
 - English-named sliders (Tweakpane)
-- Randomize / Reset / Pause–Play
-- PNG export
-- Share URL (`#/s/<id>?v=1&p=k:v,...`) with immediate **Copy link**
-- Density caps + FPS warning / auto density reduction when slow
-- `prefers-reduced-motion` pauses animation (Play resumes)
-- Desktop-first layout; stacked studio on narrow viewports (44px min controls)
-- CI on PR/push + GitHub Pages deploy from `main`
+- **Moods:** Calm / Wild / Neon / Night / Ember
+- Randomize / **Undo** / Reset / Pause–Play
+- **★ Favorite** (localStorage, this browser)
+- **Surprise me** + **Ambient Shuffle** (auto-remix wallpaper mode)
+- Fullscreen canvas
+- Keyboard shortcuts (see header)
+- PNG export + share URL
+- Density caps + FPS warning when slow
+- `prefers-reduced-motion` starts paused
+- CI + GitHub Pages deploy from `main`
+
+See `docs/FEATURE_VISION.md` for product thinking and backlog.
 
 ## Out of scope (v1)
 

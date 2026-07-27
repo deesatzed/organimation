@@ -36,7 +36,7 @@ page.on('console', (msg) => {
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('.gallery-card', { timeout: 10000 });
 const cards = await page.locator('.gallery-card').count();
-assert(cards >= 5, `gallery cards ${cards} (expected ≥5)`);
+assert(cards >= 9, `gallery cards ${cards} (expected ≥9)`);
 
 // --- Integration: Switch A→B→A, single canvas ---
 await openCard(page, 0);

@@ -39,7 +39,8 @@ npm run smoke
 - Hash routes: `#/` gallery, `#/s/:id?v=1&p=k:v,...` studio  
 - `AppState` = single truth for id + params  
 - `P5Host` dynamic-imports p5; dispose on navigate  
-- Sketches: `creature-flow`, `lozi-flow`, `ripple-field`, `orbital-rects`, `wave-lattice`
+- Sketches (9): creature-flow, lozi-flow, ripple-field, orbital-rects, wave-lattice, spiral-bloom, ink-tendrils, pulse-rings, aurora-veil
+- Play features: moods, undo, favorites, ambient shuffle, fullscreen, live gallery thumbs
 
 ## Docs
 

@@ -15,6 +15,9 @@ import { paramController } from '../ui/ParamController';
 import { renderGallery } from '../ui/GalleryView';
 import { renderCreditBadge } from '../ui/CreditBadge';
 import { renderFpsBanner } from '../ui/FpsBanner';
+import { paramHistory } from '../lib/history';
+import { addFavorite } from '../lib/favorites';
+import { MOODS, applyMood } from '../lib/moods';
 
 export class AppShell {
   private root: HTMLElement;
@@ -24,14 +27,19 @@ export class AppShell {
   private creditEl: HTMLElement | null = null;
   private fpsEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
+  private moodHost: HTMLElement | null = null;
   private exportBtn: HTMLButtonElement | null = null;
   private pauseBtn: HTMLButtonElement | null = null;
+  private undoBtn: HTMLButtonElement | null = null;
   private urlTimer: number | null = null;
+  private ambientTimer: number | null = null;
   private lastClampAt = 0;
   private suppressUrl = false;
   private currentStudioId: string | null = null;
-  /** User or OS-driven freeze of animation (speed forced to 0). */
   private paused = false;
+  private ambientOn = false;
+  private moodIndex = 0;
+  private keysBound = false;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -51,6 +59,7 @@ export class AppShell {
     header.innerHTML = `
       <a href="#/" class="brand">organimation</a>
       <p class="tagline">Organic sketches you can tweak — no math required</p>
+      <p class="shortcuts-hint">Keys: R randomize · Z undo · Space pause · F full · S PNG · L link · M mood · A ambient</p>
     `;
 
     this.mainEl = document.createElement('main');
@@ -61,38 +70,102 @@ export class AppShell {
     const footer = document.createElement('footer');
     footer.className = 'app-footer';
     footer.innerHTML = `
-      <span>Browser-only · p5.js · Vite</span>
+      <span>Browser-only · p5.js · Vite · local favorites</span>
       <a href="#/">Gallery</a>
     `;
 
     this.root.append(skip, header, this.mainEl, footer);
 
-    // Respect OS reduced-motion as initial pause
     if (prefersReducedMotion()) {
       this.paused = true;
     }
     const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const onMotion = () => {
+    mq.addEventListener('change', () => {
       if (mq.matches) {
         this.paused = true;
         this.syncPauseUi();
-        this.flashStatus('Reduced motion on — animation paused. Press Play to animate.');
+        this.flashStatus('Reduced motion on — animation paused.');
       }
-    };
-    mq.addEventListener('change', onMotion);
+    });
+
+    window.addEventListener('organimation:favorites-changed', () => {
+      if (router.parse().name === 'gallery') this.showGallery();
+    });
+
+    this.bindKeys();
 
     router.subscribe((route) => this.onRoute(route));
     appState.subscribe(() => this.onStateChange());
     router.start();
-
-    // Initial route from current hash (may include share params)
     this.onRoute(router.parse());
+  }
+
+  private bindKeys(): void {
+    if (this.keysBound) return;
+    this.keysBound = true;
+    window.addEventListener('keydown', (e) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
+        return;
+      }
+      if (router.parse().name !== 'studio' && e.key !== 'a' && e.key !== 'A') {
+        // Ambient works on gallery too
+        if (e.key === 'a' || e.key === 'A') {
+          e.preventDefault();
+          this.toggleAmbient();
+        }
+        return;
+      }
+
+      switch (e.key) {
+        case 'r':
+        case 'R':
+          e.preventDefault();
+          this.doRandomize();
+          break;
+        case 'z':
+        case 'Z':
+          e.preventDefault();
+          this.doUndo();
+          break;
+        case ' ':
+          e.preventDefault();
+          this.togglePause();
+          break;
+        case 'f':
+        case 'F':
+          e.preventDefault();
+          void this.toggleFullscreen();
+          break;
+        case 's':
+        case 'S':
+          e.preventDefault();
+          this.doExport();
+          break;
+        case 'l':
+        case 'L':
+          e.preventDefault();
+          void this.copyLink();
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          this.applyNextMood();
+          break;
+        case 'a':
+        case 'A':
+          e.preventDefault();
+          this.toggleAmbient();
+          break;
+        default:
+          break;
+      }
+    });
   }
 
   private liveParams(): ParamsMap {
     const base = appState.getParams();
     if (!this.paused) return base;
-    // Freeze time-based motion without mutating stored state / share URL
     return { ...base, speed: 0 };
   }
 
@@ -101,6 +174,152 @@ export class AppShell {
       this.pauseBtn.textContent = this.paused ? 'Play' : 'Pause';
       this.pauseBtn.setAttribute('aria-pressed', this.paused ? 'true' : 'false');
     }
+  }
+
+  private syncUndoUi(): void {
+    if (this.undoBtn) {
+      this.undoBtn.disabled = paramHistory.size === 0;
+    }
+  }
+
+  private pushHistory(): void {
+    if (appState.getSketchId()) {
+      paramHistory.push(appState.getParams());
+      this.syncUndoUi();
+    }
+  }
+
+  private refreshPane(): void {
+    const mod = appState.getModule();
+    if (mod && this.paneHost) paramController.refreshFromState(appState, mod);
+  }
+
+  private doRandomize(): void {
+    if (!appState.getSketchId()) return;
+    this.pushHistory();
+    appState.randomize();
+    this.refreshPane();
+    this.flashStatus('Randomized. Z to undo.');
+  }
+
+  private doUndo(): void {
+    const prev = paramHistory.pop();
+    this.syncUndoUi();
+    if (!prev) {
+      this.flashStatus('Nothing to undo.');
+      return;
+    }
+    this.suppressUrl = true;
+    appState.setParams(prev);
+    this.suppressUrl = false;
+    this.refreshPane();
+    this.flashStatus('Undid last change.');
+  }
+
+  private doReset(): void {
+    this.pushHistory();
+    appState.reset();
+    this.refreshPane();
+    this.flashStatus('Reset to defaults.');
+  }
+
+  private togglePause(): void {
+    this.paused = !this.paused;
+    this.syncPauseUi();
+    this.flashStatus(this.paused ? 'Animation paused.' : 'Animation playing.');
+  }
+
+  private applyNextMood(): void {
+    const mod = appState.getModule();
+    if (!mod) return;
+    this.pushHistory();
+    const mood = MOODS[this.moodIndex % MOODS.length]!;
+    this.moodIndex++;
+    const next = applyMood(mod.paramSchema, appState.getParams(), mood);
+    appState.setParams(next);
+    this.refreshPane();
+    this.flashStatus(`Mood: ${mood.label}`);
+  }
+
+  private applyMoodAt(index: number): void {
+    const mod = appState.getModule();
+    if (!mod) return;
+    const mood = MOODS[index];
+    if (!mood) return;
+    this.pushHistory();
+    this.moodIndex = index + 1;
+    const next = applyMood(mod.paramSchema, appState.getParams(), mood);
+    appState.setParams(next);
+    this.refreshPane();
+    this.flashStatus(`Mood: ${mood.label}`);
+  }
+
+  private saveFavorite(): void {
+    const id = appState.getSketchId();
+    const mod = appState.getModule();
+    if (!id || !mod) return;
+    const title = `${mod.credit.title} · ${new Date().toLocaleString()}`;
+    addFavorite(id, title, appState.getParams());
+    this.flashStatus('Saved to favorites (this browser).');
+  }
+
+  private async toggleFullscreen(): Promise<void> {
+    const el = this.canvasHost;
+    if (!el) return;
+    try {
+      if (!document.fullscreenElement) {
+        await el.requestFullscreen();
+        this.flashStatus('Fullscreen — Esc to exit.');
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch {
+      this.flashStatus('Fullscreen not available.');
+    }
+  }
+
+  private toggleAmbient(): void {
+    this.ambientOn = !this.ambientOn;
+    if (this.ambientTimer !== null) {
+      window.clearInterval(this.ambientTimer);
+      this.ambientTimer = null;
+    }
+    if (this.ambientOn) {
+      // Reduced motion users still get slow changes but stay paused visually
+      this.ambientTimer = window.setInterval(() => this.ambientTick(), 9000);
+      this.flashStatus('Ambient Shuffle on — changes every ~9s.');
+      if (router.parse().name === 'gallery') {
+        this.ambientTick();
+      }
+    } else {
+      this.flashStatus('Ambient Shuffle off.');
+    }
+    if (router.parse().name === 'gallery') this.showGallery();
+  }
+
+  private ambientTick(): void {
+    const list = listSketches();
+    if (list.length === 0) return;
+    const pick = list[Math.floor(Math.random() * list.length)]!;
+    paramHistory.clear();
+    appState.setSketch(pick.id);
+    appState.randomize();
+    if (this.currentStudioId === pick.id && this.paneHost) {
+      this.refreshPane();
+      this.flashStatus(`Ambient → ${pick.credit.title}`);
+      return;
+    }
+    router.goStudio(pick.id);
+  }
+
+  private surprise(): void {
+    const list = listSketches();
+    if (list.length === 0) return;
+    const pick = list[Math.floor(Math.random() * list.length)]!;
+    paramHistory.clear();
+    appState.setSketch(pick.id);
+    appState.randomize();
+    router.goStudio(pick.id);
   }
 
   private onRoute(route: Route): void {
@@ -114,9 +333,16 @@ export class AppShell {
   private showGallery(): void {
     this.teardownStudio();
     this.currentStudioId = null;
-    renderGallery(this.mainEl, (id) => {
-      appState.setSketch(id);
-      router.goStudio(id);
+    renderGallery(this.mainEl, {
+      onOpen: (id, params) => {
+        paramHistory.clear();
+        if (params) appState.setSketch(id, params as ParamsMap);
+        else appState.setSketch(id);
+        router.goStudio(id);
+      },
+      onAmbientToggle: () => this.toggleAmbient(),
+      ambientOn: this.ambientOn,
+      onSurprise: () => this.surprise(),
     });
   }
 
@@ -134,9 +360,9 @@ export class AppShell {
       this.teardownStudio();
       this.currentStudioId = sketchId;
       this.buildStudioDom();
+      paramHistory.clear();
     }
 
-    // Load state from URL when present; else defaults
     this.suppressUrl = true;
     if (parsed.sketchId === sketchId && Object.keys(parsed.params).length > 0) {
       appState.setSketch(sketchId, parsed.params);
@@ -153,6 +379,7 @@ export class AppShell {
 
     renderCreditBadge(this.creditEl, module.credit);
     paramController.mount(this.paneHost, appState, module);
+    this.renderMoodBar();
 
     fpsMonitor.reset();
     p5Host.setFrameCallback((instant) => this.onFrame(instant));
@@ -161,20 +388,32 @@ export class AppShell {
       this.flashStatus('Sketch error — try Reset.');
     });
 
-    if (this.exportBtn) {
-      this.exportBtn.disabled = true;
-    }
+    if (this.exportBtn) this.exportBtn.disabled = true;
 
     await p5Host.mount(module, this.canvasHost, () => this.liveParams());
 
-    // Only enable export if this studio is still active
     if (this.currentStudioId === sketchId && this.exportBtn) {
       this.exportBtn.disabled = false;
     }
     this.syncPauseUi();
-    if (this.paused) {
-      this.flashStatus('Animation paused. Press Play to animate.');
-    }
+    this.syncUndoUi();
+  }
+
+  private renderMoodBar(): void {
+    if (!this.moodHost) return;
+    this.moodHost.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'mood-label';
+    label.textContent = 'Moods:';
+    this.moodHost.appendChild(label);
+    MOODS.forEach((mood, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn mood-btn';
+      b.textContent = mood.label;
+      b.addEventListener('click', () => this.applyMoodAt(i));
+      this.moodHost!.appendChild(b);
+    });
   }
 
   private buildStudioDom(): void {
@@ -194,32 +433,39 @@ export class AppShell {
     randomize.type = 'button';
     randomize.className = 'btn';
     randomize.textContent = 'Randomize';
-    randomize.addEventListener('click', () => {
-      appState.randomize();
-      const mod = appState.getModule();
-      if (mod && this.paneHost) paramController.refreshFromState(appState, mod);
-    });
+    randomize.addEventListener('click', () => this.doRandomize());
+
+    this.undoBtn = document.createElement('button');
+    this.undoBtn.type = 'button';
+    this.undoBtn.className = 'btn';
+    this.undoBtn.textContent = 'Undo';
+    this.undoBtn.disabled = true;
+    this.undoBtn.addEventListener('click', () => this.doUndo());
 
     const reset = document.createElement('button');
     reset.type = 'button';
     reset.className = 'btn';
     reset.textContent = 'Reset';
-    reset.addEventListener('click', () => {
-      appState.reset();
-      const mod = appState.getModule();
-      if (mod && this.paneHost) paramController.refreshFromState(appState, mod);
-    });
+    reset.addEventListener('click', () => this.doReset());
 
     this.pauseBtn = document.createElement('button');
     this.pauseBtn.type = 'button';
     this.pauseBtn.className = 'btn';
     this.pauseBtn.textContent = this.paused ? 'Play' : 'Pause';
     this.pauseBtn.setAttribute('aria-pressed', this.paused ? 'true' : 'false');
-    this.pauseBtn.addEventListener('click', () => {
-      this.paused = !this.paused;
-      this.syncPauseUi();
-      this.flashStatus(this.paused ? 'Animation paused.' : 'Animation playing.');
-    });
+    this.pauseBtn.addEventListener('click', () => this.togglePause());
+
+    const full = document.createElement('button');
+    full.type = 'button';
+    full.className = 'btn';
+    full.textContent = 'Fullscreen';
+    full.addEventListener('click', () => void this.toggleFullscreen());
+
+    const fav = document.createElement('button');
+    fav.type = 'button';
+    fav.className = 'btn';
+    fav.textContent = '★ Favorite';
+    fav.addEventListener('click', () => this.saveFavorite());
 
     const copy = document.createElement('button');
     copy.type = 'button';
@@ -233,7 +479,20 @@ export class AppShell {
     this.exportBtn.textContent = 'Export PNG';
     this.exportBtn.addEventListener('click', () => this.doExport());
 
-    toolbar.append(back, randomize, reset, this.pauseBtn, copy, this.exportBtn);
+    toolbar.append(
+      back,
+      randomize,
+      this.undoBtn,
+      reset,
+      this.pauseBtn,
+      full,
+      fav,
+      copy,
+      this.exportBtn,
+    );
+
+    this.moodHost = document.createElement('div');
+    this.moodHost.className = 'mood-bar';
 
     this.fpsEl = document.createElement('div');
     this.fpsEl.className = 'fps-banner';
@@ -261,7 +520,14 @@ export class AppShell {
 
     side.append(this.paneHost);
     layout.append(this.canvasHost, side);
-    this.mainEl.append(toolbar, this.fpsEl, this.creditEl, layout, this.statusEl);
+    this.mainEl.append(
+      toolbar,
+      this.moodHost,
+      this.fpsEl,
+      this.creditEl,
+      layout,
+      this.statusEl,
+    );
   }
 
   private teardownStudio(): void {
@@ -272,8 +538,10 @@ export class AppShell {
     this.creditEl = null;
     this.fpsEl = null;
     this.statusEl = null;
+    this.moodHost = null;
     this.exportBtn = null;
     this.pauseBtn = null;
+    this.undoBtn = null;
     if (this.urlTimer !== null) {
       window.clearTimeout(this.urlTimer);
       this.urlTimer = null;
@@ -325,9 +593,8 @@ export class AppShell {
     this.suppressUrl = true;
     appState.setParam(key, next);
     this.suppressUrl = false;
-    paramController.refreshFromState(appState, mod);
+    this.refreshPane();
     this.flashStatus(`Density lowered to ${next} to improve FPS.`);
-    // Still update URL for the clamp
     const snap = appState.getSnapshot();
     if (snap.sketchId) {
       router.replaceHash(encodeHash(snap.sketchId, snap.params, mod.paramSchema));
@@ -341,7 +608,6 @@ export class AppShell {
       this.flashStatus('Nothing to share yet.');
       return;
     }
-    // Immediate flush (no debounce)
     const hash = encodeHash(snap.sketchId, snap.params, mod.paramSchema);
     router.replaceHash(hash);
     const url = buildShareUrl(snap.sketchId, snap.params, mod.paramSchema);
@@ -349,7 +615,6 @@ export class AppShell {
       await navigator.clipboard.writeText(url);
       this.flashStatus('Link copied.');
     } catch {
-      // Fallback prompt
       window.prompt('Copy this link:', url);
       this.flashStatus('Copy the link from the dialog.');
     }
