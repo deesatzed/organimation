@@ -199,6 +199,51 @@ button:focus-visible,
   margin-top: -0.25rem;
 }
 
+/* Paste editor */
+.paste-view {
+  max-width: 720px;
+}
+
+.paste-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.4rem;
+}
+
+.paste-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.paste-input,
+.paste-area {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  padding: 0.65rem 0.75rem;
+}
+
+.paste-area {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  min-height: 220px;
+  resize: vertical;
+}
+
+.paste-input:focus,
+.paste-area:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .canvas-host:fullscreen {
   max-width: none;
   width: 100%;

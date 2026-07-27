@@ -40,7 +40,7 @@ npm run smoke
 - `AppState` = single truth for id + params  
 - `P5Host` dynamic-imports p5; dispose on navigate  
 - Sketches (9): creature-flow, lozi-flow, ripple-field, orbital-rects, wave-lattice, spiral-bloom, ink-tendrils, pulse-rings, aurora-veil
-- Play features: moods, morph, palettes, undo, favorites, pin compare, WebM loop, mic react, ambient, fullscreen, thumbs
+- Play features: moods, morph, palettes, undo, favorites, pin compare, WebM + GIF, mic, ambient, paste→sliders, thumbs
 
 ## Docs
 
@@ -55,8 +55,8 @@ npm run smoke
 
 ## Suggested next work (not started)
 
-1. **Deferred backlog:** paste-auto-sliders, accounts/community, share analytics — needs new requirements  
-2. **Optional polish:** dual live canvases, GIF encoder, custom domain, WEBGL sketches
+1. **Deferred backlog:** accounts/community, share analytics — needs new requirements  
+2. **Optional polish:** dual live canvases, custom domain, WEBGL sketches, smarter slider labels from AST
 
 ## Continuity checklist
 

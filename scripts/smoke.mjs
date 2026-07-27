@@ -97,7 +97,8 @@ assert(pauseLabel === 'Play' || pauseLabel === 'Pause', `pause label ${pauseLabe
 await pause.click();
 
 // Enhancement controls present
-await page.getByRole('button', { name: 'Loop 3s' }).waitFor({ timeout: 5000 });
+await page.getByRole('button', { name: 'WebM 3s' }).waitFor({ timeout: 5000 });
+await page.getByRole('button', { name: 'GIF 3s' }).waitFor({ timeout: 3000 });
 await page.getByRole('button', { name: 'Pin compare' }).waitFor({ timeout: 3000 });
 await page.getByRole('button', { name: 'Morph →' }).waitFor({ timeout: 3000 });
 await page.getByRole('button', { name: 'Ice' }).waitFor({ timeout: 3000 });
@@ -164,6 +165,21 @@ await page.setViewportSize({ width: 390, height: 844 });
 await openCard(page, 0);
 const btnBox = await page.getByRole('button', { name: 'Randomize' }).boundingBox();
 assert(btnBox && btnBox.height >= 40, `touch target height ${btnBox?.height}`);
+
+// Paste golfed code flow
+await goGallery(page).catch(async () => {
+  await page.goto(`${BASE}#/`, { waitUntil: 'networkidle' });
+  await page.waitForSelector('.gallery-card');
+});
+await page.getByRole('button', { name: 'Paste golfed code' }).click();
+await page.waitForSelector('.paste-area', { timeout: 5000 });
+await page.getByRole('button', { name: 'Load sample' }).click();
+await page.getByRole('button', { name: 'Build sliders & run' }).click();
+await page.waitForSelector('.canvas-host canvas', { timeout: 20000 });
+// Auto-sliders for extracted numbers should appear in tweakpane
+await page.waitForTimeout(500);
+const pasteCanvas = await page.locator('.canvas-host canvas').count();
+assert(pasteCanvas === 1, 'paste sketch canvas');
 
 const fatal = errors.filter(
   (e) =>

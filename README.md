@@ -65,7 +65,8 @@ Credits also appear in the studio UI under each sketch.
 - Randomize / **Undo** / Reset / Pause–Play
 - **★ Favorite** (localStorage, this browser)
 - **Pin compare** (still left vs live right)
-- **Loop 3s** WebM export (real canvas capture)
+- **WebM 3s** + **GIF 3s** export (real canvas capture + gifenc)
+- **Paste golfed code** → auto-sliders (Skepara-style number extract)
 - **Mic** optional — speed reacts to sound
 - **Surprise me** + **Ambient Shuffle**
 - Fullscreen canvas + keyboard shortcuts (see header)
@@ -76,12 +77,11 @@ Credits also appear in the studio UI under each sketch.
 
 See `docs/FEATURE_VISION.md` for product thinking and backlog.
 
-## Out of scope (v1)
+## Out of scope
 
 - User accounts / auth
 - Backend / server
-- Auto-paste golfed tweet code → sliders
-- GIF / video export
+- Community feed / cloud sync
 
 ## Project docs
 

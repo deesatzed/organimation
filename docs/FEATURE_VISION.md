@@ -44,11 +44,17 @@ Thinking from the actual product: non-math people who want hypnotic organic moti
 | **Seed control** | Reproducible chaos | Only if sketches use seeded RNG |
 | **Param morph A↔B custom pins** | User-defined endpoints | UX |
 
+### Shipped later (user-requested)
+
+| Feature | Status |
+|---------|--------|
+| **Paste golfed code → auto-sliders** | Done — `#/paste`, number scanner, p5 instance bridge |
+| **GIF encoder** | Done — gifenc quantize + multi-frame export |
+
 ### Needs new product scope
 
 | Feature | Why wait |
 |---------|----------|
-| Paste golfed tweet → auto-sliders | Big parser + security surface |
 | Cloud accounts / multi-device sync | Server, auth |
 | Community feed / remix of the day | Moderation + backend |
 | Scrape X for new #つぶやきProcessing | ToS, brittle |

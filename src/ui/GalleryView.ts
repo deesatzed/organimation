@@ -12,6 +12,7 @@ export interface GalleryHandlers {
   onAmbientToggle: () => void;
   ambientOn: boolean;
   onSurprise: () => void;
+  onPaste: () => void;
 }
 
 export function renderGallery(root: HTMLElement, handlers: GalleryHandlers): void {
@@ -41,7 +42,13 @@ export function renderGallery(root: HTMLElement, handlers: GalleryHandlers): voi
   ambient.setAttribute('aria-pressed', handlers.ambientOn ? 'true' : 'false');
   ambient.addEventListener('click', () => handlers.onAmbientToggle());
 
-  actions.append(surprise, ambient);
+  const paste = document.createElement('button');
+  paste.type = 'button';
+  paste.className = 'btn btn-primary';
+  paste.textContent = 'Paste golfed code';
+  paste.addEventListener('click', () => handlers.onPaste());
+
+  actions.append(surprise, ambient, paste);
   root.appendChild(actions);
 
   // Favorites strip

@@ -8,6 +8,7 @@ import { rippleField } from './rippleField';
 import { spiralBloom } from './spiralBloom';
 import { waveLattice } from './waveLattice';
 import type { SketchModule } from './types';
+import { getPasteModule, isPasteSketchId } from '../paste/session';
 
 const sketches: SketchModule[] = [
   creatureFlow,
@@ -28,6 +29,7 @@ export function listSketches(): SketchModule[] {
 }
 
 export function getSketch(id: string): SketchModule | undefined {
+  if (isPasteSketchId(id)) return getPasteModule();
   return byId.get(id);
 }
 

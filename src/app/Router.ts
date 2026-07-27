@@ -1,5 +1,6 @@
 export type Route =
   | { name: 'gallery' }
+  | { name: 'paste' }
   | { name: 'studio'; sketchId: string };
 
 type RouteListener = (route: Route) => void;
@@ -37,6 +38,9 @@ export class Router {
   parse(hash = window.location.hash): Route {
     const raw = hash.startsWith('#') ? hash.slice(1) : hash;
     const path = (raw.split('?')[0] || '/').replace(/\/+$/, '') || '/';
+    if (path === '/paste') {
+      return { name: 'paste' };
+    }
     const studio = path.match(/^\/s\/([^/]+)$/);
     if (studio?.[1]) {
       return { name: 'studio', sketchId: decodeURIComponent(studio[1]) };
@@ -46,6 +50,10 @@ export class Router {
 
   goGallery(): void {
     window.location.hash = '#/';
+  }
+
+  goPaste(): void {
+    window.location.hash = '#/paste';
   }
 
   goStudio(id: string, query = ''): void {

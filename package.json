@@ -7,11 +7,12 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "selfcheck": "npx tsx src/app/AppState.selfcheck.ts && npx tsx src/share/urlState.selfcheck.ts && npx tsx src/runtime/FpsMonitor.selfcheck.ts && npx tsx src/lib/morph.selfcheck.ts",
+    "selfcheck": "npx tsx src/app/AppState.selfcheck.ts && npx tsx src/share/urlState.selfcheck.ts && npx tsx src/runtime/FpsMonitor.selfcheck.ts && npx tsx src/lib/morph.selfcheck.ts && npx tsx src/paste/parseNumbers.selfcheck.ts",
     "smoke": "node scripts/smoke.mjs"
   },
   "dependencies": {
     "@tweakpane/core": "^2.0.5",
+    "gifenc": "^1.0.3",
     "p5": "^1.11.3",
     "tweakpane": "^4.0.5"
   },

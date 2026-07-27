@@ -12,8 +12,10 @@ import {
 } from '../share/urlState';
 import { exportPng } from '../share/pngExport';
 import { exportWebmLoop } from '../share/webmExport';
+import { exportGifLoop } from '../share/gifExport';
 import { paramController } from '../ui/ParamController';
 import { renderGallery } from '../ui/GalleryView';
+import { renderPasteView } from '../ui/PasteView';
 import { renderCreditBadge } from '../ui/CreditBadge';
 import { renderFpsBanner } from '../ui/FpsBanner';
 import { paramHistory } from '../lib/history';
@@ -22,6 +24,8 @@ import { MOODS, applyMood } from '../lib/moods';
 import { PALETTES, applyPalette } from '../lib/palettes';
 import { runMorph, type MorphCancel } from '../lib/morph';
 import { micReactor } from '../lib/micReact';
+import { buildGolfSketch } from '../paste/buildGolfSketch';
+import { PASTE_SKETCH_ID, setPasteSession } from '../paste/session';
 
 export class AppShell {
   private root: HTMLElement;
@@ -37,6 +41,7 @@ export class AppShell {
   private paletteHost: HTMLElement | null = null;
   private exportBtn: HTMLButtonElement | null = null;
   private webmBtn: HTMLButtonElement | null = null;
+  private gifBtn: HTMLButtonElement | null = null;
   private pauseBtn: HTMLButtonElement | null = null;
   private undoBtn: HTMLButtonElement | null = null;
   private micBtn: HTMLButtonElement | null = null;
@@ -74,7 +79,7 @@ export class AppShell {
     header.innerHTML = `
       <a href="#/" class="brand">organimation</a>
       <p class="tagline">Organic sketches you can tweak — no math required</p>
-      <p class="shortcuts-hint">Keys: R rand · Z undo · Space pause · F full · S PNG · V loop · L link · M mood · P palette · C pin · B mic · A ambient</p>
+      <p class="shortcuts-hint">Keys: R rand · Z undo · Space pause · F full · S PNG · V WebM · G GIF · L link · M mood · P palette · C pin · B mic · A ambient</p>
     `;
 
     this.mainEl = document.createElement('main');
@@ -143,6 +148,8 @@ export class AppShell {
         S: () => this.doExport(),
         v: () => void this.doWebm(),
         V: () => void this.doWebm(),
+        g: () => void this.doGif(),
+        G: () => void this.doGif(),
         l: () => void this.copyLink(),
         L: () => void this.copyLink(),
         m: () => this.morphToNextMood(),
@@ -459,6 +466,10 @@ export class AppShell {
       this.showGallery();
       return;
     }
+    if (route.name === 'paste') {
+      this.showPaste();
+      return;
+    }
     void this.showStudio(route.sketchId);
   }
 
@@ -476,6 +487,35 @@ export class AppShell {
       onAmbientToggle: () => this.toggleAmbient(),
       ambientOn: this.ambientOn,
       onSurprise: () => this.surprise(),
+      onPaste: () => router.goPaste(),
+    });
+  }
+
+  private showPaste(): void {
+    this.teardownStudio();
+    this.currentStudioId = null;
+    renderPasteView(this.mainEl, {
+      onCancel: () => router.goGallery(),
+      onBuild: (source, title) => {
+        try {
+          const built = buildGolfSketch(source, title);
+          setPasteSession(built.module, source);
+          paramHistory.clear();
+          this.stopMorph();
+          appState.setSketch(PASTE_SKETCH_ID);
+          router.goStudio(PASTE_SKETCH_ID);
+          const warn =
+            built.warnings.length > 0 ? ` ${built.warnings.join(' ')}` : '';
+          // Status after studio mounts
+          window.setTimeout(() => {
+            this.flashStatus(
+              `Built ${built.slots.length} sliders from paste.${warn}`,
+            );
+          }, 200);
+        } catch (err) {
+          window.alert(err instanceof Error ? err.message : String(err));
+        }
+      },
     });
   }
 
@@ -483,6 +523,11 @@ export class AppShell {
     const parsed = parseHash(window.location.hash);
     const mod = getSketch(sketchId);
     if (!mod) {
+      if (sketchId === PASTE_SKETCH_ID) {
+        this.flashStatus('No paste session — open Paste golfed code.');
+        router.goPaste();
+        return;
+      }
       this.flashStatus('Unknown sketch — back to gallery.');
       router.goGallery();
       return;
@@ -524,12 +569,14 @@ export class AppShell {
 
     if (this.exportBtn) this.exportBtn.disabled = true;
     if (this.webmBtn) this.webmBtn.disabled = true;
+    if (this.gifBtn) this.gifBtn.disabled = true;
 
     await p5Host.mount(module, this.canvasHost, () => this.liveParams());
 
     if (this.currentStudioId === sketchId) {
       if (this.exportBtn) this.exportBtn.disabled = false;
       if (this.webmBtn) this.webmBtn.disabled = this.recording;
+      if (this.gifBtn) this.gifBtn.disabled = this.recording;
     }
     this.syncPauseUi();
     this.syncUndoUi();
@@ -629,8 +676,11 @@ export class AppShell {
     this.exportBtn = mk('Export PNG', 'btn btn-primary', () => this.doExport());
     toolbar.append(this.exportBtn);
 
-    this.webmBtn = mk('Loop 3s', 'btn btn-primary', () => void this.doWebm());
+    this.webmBtn = mk('WebM 3s', 'btn btn-primary', () => void this.doWebm());
     toolbar.append(this.webmBtn);
+
+    this.gifBtn = mk('GIF 3s', 'btn btn-primary', () => void this.doGif());
+    toolbar.append(this.gifBtn);
 
     this.moodHost = document.createElement('div');
     this.moodHost.className = 'mood-bar';
@@ -700,6 +750,7 @@ export class AppShell {
     this.paletteHost = null;
     this.exportBtn = null;
     this.webmBtn = null;
+    this.gifBtn = null;
     this.pauseBtn = null;
     this.undoBtn = null;
     this.micBtn = null;
@@ -790,6 +841,18 @@ export class AppShell {
     this.flashStatus(ok ? 'PNG downloaded.' : 'Export failed — canvas not ready.');
   }
 
+  private setRecordingUi(on: boolean, label: string): void {
+    this.recording = on;
+    if (this.webmBtn) {
+      this.webmBtn.disabled = on;
+      this.webmBtn.textContent = on && label === 'webm' ? 'Recording…' : 'WebM 3s';
+    }
+    if (this.gifBtn) {
+      this.gifBtn.disabled = on;
+      this.gifBtn.textContent = on && label === 'gif' ? 'Encoding…' : 'GIF 3s';
+    }
+  }
+
   private async doWebm(): Promise<void> {
     if (this.recording) return;
     const id = appState.getSketchId() ?? 'sketch';
@@ -798,27 +861,48 @@ export class AppShell {
       this.flashStatus('Canvas not ready.');
       return;
     }
-    // Ensure motion for recording
     if (this.paused) {
       this.paused = false;
       this.syncPauseUi();
     }
-    this.recording = true;
-    if (this.webmBtn) {
-      this.webmBtn.disabled = true;
-      this.webmBtn.textContent = 'Recording…';
-    }
-    this.flashStatus('Recording 3s loop…');
+    this.setRecordingUi(true, 'webm');
+    this.flashStatus('Recording 3s WebM…');
     const result = await exportWebmLoop(canvas, id, { durationMs: 3000 });
-    this.recording = false;
-    if (this.webmBtn) {
-      this.webmBtn.disabled = false;
-      this.webmBtn.textContent = 'Loop 3s';
-    }
+    this.setRecordingUi(false, 'webm');
     if (result.ok) {
-      this.flashStatus(`Loop saved (${result.mimeType ?? 'video'}).`);
+      this.flashStatus(`WebM saved (${result.mimeType ?? 'video'}).`);
     } else {
-      this.flashStatus(`Loop failed: ${result.error ?? 'unknown'}`);
+      this.flashStatus(`WebM failed: ${result.error ?? 'unknown'}`);
+    }
+  }
+
+  private async doGif(): Promise<void> {
+    if (this.recording) return;
+    const id = appState.getSketchId() ?? 'sketch';
+    const canvas = p5Host.getCanvas();
+    if (!canvas) {
+      this.flashStatus('Canvas not ready.');
+      return;
+    }
+    if (this.paused) {
+      this.paused = false;
+      this.syncPauseUi();
+    }
+    this.setRecordingUi(true, 'gif');
+    this.flashStatus('Capturing & encoding GIF (~3s)…');
+    const result = await exportGifLoop(canvas, id, {
+      durationMs: 3000,
+      fps: 12,
+      maxColors: 128,
+      maxEdge: 320,
+    });
+    this.setRecordingUi(false, 'gif');
+    if (result.ok) {
+      this.flashStatus(
+        `GIF saved (${result.frames ?? 0} frames, ${result.bytes ?? 0} bytes).`,
+      );
+    } else {
+      this.flashStatus(`GIF failed: ${result.error ?? 'unknown'}`);
     }
   }
 
