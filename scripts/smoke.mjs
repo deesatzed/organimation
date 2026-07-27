@@ -96,6 +96,25 @@ const pauseLabel = await pause.innerText();
 assert(pauseLabel === 'Play' || pauseLabel === 'Pause', `pause label ${pauseLabel}`);
 await pause.click();
 
+// Enhancement controls present
+await page.getByRole('button', { name: 'Loop 3s' }).waitFor({ timeout: 5000 });
+await page.getByRole('button', { name: 'Pin compare' }).waitFor({ timeout: 3000 });
+await page.getByRole('button', { name: 'Morph →' }).waitFor({ timeout: 3000 });
+await page.getByRole('button', { name: 'Ice' }).waitFor({ timeout: 3000 });
+
+// Pin compare creates left snapshot
+await page.getByRole('button', { name: 'Pin compare' }).click();
+await page.waitForSelector('.pin-host img', { timeout: 5000 });
+await page.getByRole('button', { name: 'Unpin' }).click();
+
+// Palette apply
+await page.getByRole('button', { name: 'Ice' }).click();
+await page.waitForTimeout(150);
+
+// Morph starts (status updates)
+await page.getByRole('button', { name: 'Morph →' }).click();
+await page.waitForTimeout(400);
+
 // PNG export actually downloads
 const downloadPromise = page.waitForEvent('download', { timeout: 10000 });
 await page.getByRole('button', { name: 'Export PNG' }).click();

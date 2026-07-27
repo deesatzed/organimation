@@ -25,16 +25,24 @@ Thinking from the actual product: non-math people who want hypnotic organic moti
 | **Keyboard shortcuts** | Power users and accessibility of action |
 | **Ambient shuffle** | Auto-cycle sketches + randomize for living wallpaper |
 
-### High value next (still browser-only)
+### Shipped (enhancement pass)
+
+| Feature | Status |
+|---------|--------|
+| **WebM 3s loop export** | Done (`Loop 3s` / key V) — real MediaRecorder |
+| **Param morph → mood** | Done (`Morph →` / key M) |
+| **Pin compare** | Done (freeze left still vs live right) |
+| **Mic reactivity** | Done (optional; multiplies speed by audio energy) |
+| **Palette kits** | Done (Ice / Mint / Violet / Sunset / Gold / Mono) |
+
+### Still later (optional)
 
 | Feature | Why | Cost / risk |
 |---------|-----|-------------|
-| **Short loop export (WebM/GIF)** | Content creators post loops | Codec/size; was deferred in v1 |
-| **Param morph A→B** | Cinematic; great for capture | UX complexity |
-| **Dual compare** | “Which is better?” | Layout |
-| **Mic / beat reactivity** | Instant “alive” party mode | Permissions, a11y |
-| **Palette kits** | One-tap recolor families | Need good defaults |
+| **True dual live canvases** | Both sides animate | 2× CPU |
+| **GIF export** | Broader sharing than WebM | Encoder size |
 | **Seed control** | Reproducible chaos | Only if sketches use seeded RNG |
+| **Param morph A↔B custom pins** | User-defined endpoints | UX |
 
 ### Needs new product scope
 

@@ -11,6 +11,7 @@ import {
   parseHash,
 } from '../share/urlState';
 import { exportPng } from '../share/pngExport';
+import { exportWebmLoop } from '../share/webmExport';
 import { paramController } from '../ui/ParamController';
 import { renderGallery } from '../ui/GalleryView';
 import { renderCreditBadge } from '../ui/CreditBadge';
@@ -18,19 +19,28 @@ import { renderFpsBanner } from '../ui/FpsBanner';
 import { paramHistory } from '../lib/history';
 import { addFavorite } from '../lib/favorites';
 import { MOODS, applyMood } from '../lib/moods';
+import { PALETTES, applyPalette } from '../lib/palettes';
+import { runMorph, type MorphCancel } from '../lib/morph';
+import { micReactor } from '../lib/micReact';
 
 export class AppShell {
   private root: HTMLElement;
   private mainEl!: HTMLElement;
   private canvasHost: HTMLElement | null = null;
+  private pinHost: HTMLElement | null = null;
+  private layoutEl: HTMLElement | null = null;
   private paneHost: HTMLElement | null = null;
   private creditEl: HTMLElement | null = null;
   private fpsEl: HTMLElement | null = null;
   private statusEl: HTMLElement | null = null;
   private moodHost: HTMLElement | null = null;
+  private paletteHost: HTMLElement | null = null;
   private exportBtn: HTMLButtonElement | null = null;
+  private webmBtn: HTMLButtonElement | null = null;
   private pauseBtn: HTMLButtonElement | null = null;
   private undoBtn: HTMLButtonElement | null = null;
+  private micBtn: HTMLButtonElement | null = null;
+  private pinBtn: HTMLButtonElement | null = null;
   private urlTimer: number | null = null;
   private ambientTimer: number | null = null;
   private lastClampAt = 0;
@@ -39,7 +49,12 @@ export class AppShell {
   private paused = false;
   private ambientOn = false;
   private moodIndex = 0;
+  private paletteIndex = 0;
   private keysBound = false;
+  private recording = false;
+  private morphing = false;
+  private cancelMorph: MorphCancel | null = null;
+  private pinned = false;
 
   constructor(root: HTMLElement) {
     this.root = root;
@@ -59,7 +74,7 @@ export class AppShell {
     header.innerHTML = `
       <a href="#/" class="brand">organimation</a>
       <p class="tagline">Organic sketches you can tweak — no math required</p>
-      <p class="shortcuts-hint">Keys: R randomize · Z undo · Space pause · F full · S PNG · L link · M mood · A ambient</p>
+      <p class="shortcuts-hint">Keys: R rand · Z undo · Space pause · F full · S PNG · V loop · L link · M mood · P palette · C pin · B mic · A ambient</p>
     `;
 
     this.mainEl = document.createElement('main');
@@ -70,7 +85,7 @@ export class AppShell {
     const footer = document.createElement('footer');
     footer.className = 'app-footer';
     footer.innerHTML = `
-      <span>Browser-only · p5.js · Vite · local favorites</span>
+      <span>Browser-only · p5.js · favorites · WebM · mic optional</span>
       <a href="#/">Gallery</a>
     `;
 
@@ -108,8 +123,7 @@ export class AppShell {
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
         return;
       }
-      if (router.parse().name !== 'studio' && e.key !== 'a' && e.key !== 'A') {
-        // Ambient works on gallery too
+      if (router.parse().name !== 'studio') {
         if (e.key === 'a' || e.key === 'A') {
           e.preventDefault();
           this.toggleAmbient();
@@ -117,56 +131,52 @@ export class AppShell {
         return;
       }
 
-      switch (e.key) {
-        case 'r':
-        case 'R':
-          e.preventDefault();
-          this.doRandomize();
-          break;
-        case 'z':
-        case 'Z':
-          e.preventDefault();
-          this.doUndo();
-          break;
-        case ' ':
-          e.preventDefault();
-          this.togglePause();
-          break;
-        case 'f':
-        case 'F':
-          e.preventDefault();
-          void this.toggleFullscreen();
-          break;
-        case 's':
-        case 'S':
-          e.preventDefault();
-          this.doExport();
-          break;
-        case 'l':
-        case 'L':
-          e.preventDefault();
-          void this.copyLink();
-          break;
-        case 'm':
-        case 'M':
-          e.preventDefault();
-          this.applyNextMood();
-          break;
-        case 'a':
-        case 'A':
-          e.preventDefault();
-          this.toggleAmbient();
-          break;
-        default:
-          break;
+      const map: Record<string, () => void> = {
+        r: () => this.doRandomize(),
+        R: () => this.doRandomize(),
+        z: () => this.doUndo(),
+        Z: () => this.doUndo(),
+        ' ': () => this.togglePause(),
+        f: () => void this.toggleFullscreen(),
+        F: () => void this.toggleFullscreen(),
+        s: () => this.doExport(),
+        S: () => this.doExport(),
+        v: () => void this.doWebm(),
+        V: () => void this.doWebm(),
+        l: () => void this.copyLink(),
+        L: () => void this.copyLink(),
+        m: () => this.morphToNextMood(),
+        M: () => this.morphToNextMood(),
+        p: () => this.applyNextPalette(),
+        P: () => this.applyNextPalette(),
+        c: () => this.togglePin(),
+        C: () => this.togglePin(),
+        b: () => void this.toggleMic(),
+        B: () => void this.toggleMic(),
+        a: () => this.toggleAmbient(),
+        A: () => this.toggleAmbient(),
+      };
+      const fn = map[e.key];
+      if (fn) {
+        e.preventDefault();
+        fn();
       }
     });
   }
 
   private liveParams(): ParamsMap {
-    const base = appState.getParams();
-    if (!this.paused) return base;
-    return { ...base, speed: 0 };
+    const base = { ...appState.getParams() };
+    if (this.paused) {
+      base.speed = 0;
+      return base;
+    }
+    if (micReactor.isActive && typeof base.speed === 'number') {
+      const e = micReactor.energy();
+      // Map energy → speed multiplier 0.35..2.2 around current base
+      const mult = 0.35 + e * 1.85;
+      base.speed = Math.max(0.05, (base.speed as number) * mult);
+    }
+    return base;
   }
 
   private syncPauseUi(): void {
@@ -177,8 +187,23 @@ export class AppShell {
   }
 
   private syncUndoUi(): void {
-    if (this.undoBtn) {
-      this.undoBtn.disabled = paramHistory.size === 0;
+    if (this.undoBtn) this.undoBtn.disabled = paramHistory.size === 0;
+  }
+
+  private syncMicUi(): void {
+    if (this.micBtn) {
+      this.micBtn.textContent = micReactor.isActive ? 'Mic On' : 'Mic';
+      this.micBtn.setAttribute('aria-pressed', micReactor.isActive ? 'true' : 'false');
+    }
+  }
+
+  private syncPinUi(): void {
+    if (this.pinBtn) {
+      this.pinBtn.textContent = this.pinned ? 'Unpin' : 'Pin compare';
+      this.pinBtn.setAttribute('aria-pressed', this.pinned ? 'true' : 'false');
+    }
+    if (this.layoutEl) {
+      this.layoutEl.classList.toggle('compare-on', this.pinned);
     }
   }
 
@@ -194,8 +219,16 @@ export class AppShell {
     if (mod && this.paneHost) paramController.refreshFromState(appState, mod);
   }
 
+  private stopMorph(): void {
+    if (this.cancelMorph) {
+      this.cancelMorph();
+      this.cancelMorph = null;
+    }
+    this.morphing = false;
+  }
+
   private doRandomize(): void {
-    if (!appState.getSketchId()) return;
+    if (!appState.getSketchId() || this.morphing) return;
     this.pushHistory();
     appState.randomize();
     this.refreshPane();
@@ -203,6 +236,7 @@ export class AppShell {
   }
 
   private doUndo(): void {
+    if (this.morphing) this.stopMorph();
     const prev = paramHistory.pop();
     this.syncUndoUi();
     if (!prev) {
@@ -217,6 +251,7 @@ export class AppShell {
   }
 
   private doReset(): void {
+    if (this.morphing) this.stopMorph();
     this.pushHistory();
     appState.reset();
     this.refreshPane();
@@ -229,29 +264,72 @@ export class AppShell {
     this.flashStatus(this.paused ? 'Animation paused.' : 'Animation playing.');
   }
 
-  private applyNextMood(): void {
-    const mod = appState.getModule();
-    if (!mod) return;
-    this.pushHistory();
-    const mood = MOODS[this.moodIndex % MOODS.length]!;
-    this.moodIndex++;
-    const next = applyMood(mod.paramSchema, appState.getParams(), mood);
-    appState.setParams(next);
-    this.refreshPane();
-    this.flashStatus(`Mood: ${mood.label}`);
-  }
-
+  /** Instant mood (used by mood buttons). */
   private applyMoodAt(index: number): void {
     const mod = appState.getModule();
-    if (!mod) return;
+    if (!mod || this.morphing) return;
     const mood = MOODS[index];
     if (!mood) return;
     this.pushHistory();
     this.moodIndex = index + 1;
-    const next = applyMood(mod.paramSchema, appState.getParams(), mood);
-    appState.setParams(next);
+    appState.setParams(applyMood(mod.paramSchema, appState.getParams(), mood));
     this.refreshPane();
     this.flashStatus(`Mood: ${mood.label}`);
+  }
+
+  /** Animated morph current → next mood (M key / Morph button). */
+  private morphToNextMood(): void {
+    const mod = appState.getModule();
+    if (!mod || this.morphing || this.recording) return;
+
+    const mood = MOODS[this.moodIndex % MOODS.length]!;
+    this.moodIndex++;
+    const from = { ...appState.getParams() };
+    const to = applyMood(mod.paramSchema, from, mood);
+
+    this.pushHistory();
+    this.morphing = true;
+    this.suppressUrl = true;
+    this.flashStatus(`Morphing → ${mood.label}…`);
+
+    this.cancelMorph = runMorph(
+      mod.paramSchema,
+      from,
+      to,
+      prefersReducedMotion() ? 200 : 1800,
+      (params) => {
+        appState.setParams(params);
+        // Avoid rebuilding pane every frame — only final
+      },
+      () => {
+        this.morphing = false;
+        this.cancelMorph = null;
+        this.suppressUrl = false;
+        this.refreshPane();
+        this.flashStatus(`Mood: ${mood.label}`);
+        // Flush URL once
+        const snap = appState.getSnapshot();
+        if (snap.sketchId) {
+          router.replaceHash(encodeHash(snap.sketchId, snap.params, mod.paramSchema));
+        }
+      },
+    );
+  }
+
+  private applyPaletteAt(index: number): void {
+    const mod = appState.getModule();
+    if (!mod || this.morphing) return;
+    const pal = PALETTES[index];
+    if (!pal) return;
+    this.pushHistory();
+    this.paletteIndex = index + 1;
+    appState.setParams(applyPalette(mod.paramSchema, appState.getParams(), pal));
+    this.refreshPane();
+    this.flashStatus(`Palette: ${pal.label}`);
+  }
+
+  private applyNextPalette(): void {
+    this.applyPaletteAt(this.paletteIndex % PALETTES.length);
   }
 
   private saveFavorite(): void {
@@ -278,6 +356,61 @@ export class AppShell {
     }
   }
 
+  private togglePin(): void {
+    if (!this.pinHost || !this.canvasHost) return;
+    if (this.pinned) {
+      this.pinned = false;
+      this.pinHost.innerHTML = '';
+      this.pinHost.hidden = true;
+      this.syncPinUi();
+      this.flashStatus('Compare cleared.');
+      return;
+    }
+    const canvas = p5Host.getCanvas();
+    if (!canvas) {
+      this.flashStatus('Nothing to pin yet.');
+      return;
+    }
+    try {
+      const url = canvas.toDataURL('image/png');
+      this.pinHost.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = 'Pinned comparison snapshot';
+      this.pinHost.appendChild(img);
+      const cap = document.createElement('p');
+      cap.className = 'pin-caption';
+      cap.textContent = 'Pinned (left) vs live (right)';
+      this.pinHost.appendChild(cap);
+      this.pinHost.hidden = false;
+      this.pinned = true;
+      this.syncPinUi();
+      this.flashStatus('Pinned left for compare. Tweak right, then Unpin.');
+    } catch {
+      this.flashStatus('Pin failed.');
+    }
+  }
+
+  private async toggleMic(): Promise<void> {
+    if (micReactor.isActive) {
+      micReactor.stop();
+      this.syncMicUi();
+      this.flashStatus('Mic off.');
+      return;
+    }
+    const res = await micReactor.start();
+    this.syncMicUi();
+    if (!res.ok) {
+      this.flashStatus(`Mic unavailable: ${res.error ?? 'denied'}`);
+      return;
+    }
+    if (this.paused) {
+      this.paused = false;
+      this.syncPauseUi();
+    }
+    this.flashStatus('Mic on — speed reacts to sound.');
+  }
+
   private toggleAmbient(): void {
     this.ambientOn = !this.ambientOn;
     if (this.ambientTimer !== null) {
@@ -285,12 +418,9 @@ export class AppShell {
       this.ambientTimer = null;
     }
     if (this.ambientOn) {
-      // Reduced motion users still get slow changes but stay paused visually
       this.ambientTimer = window.setInterval(() => this.ambientTick(), 9000);
       this.flashStatus('Ambient Shuffle on — changes every ~9s.');
-      if (router.parse().name === 'gallery') {
-        this.ambientTick();
-      }
+      if (router.parse().name === 'gallery') this.ambientTick();
     } else {
       this.flashStatus('Ambient Shuffle off.');
     }
@@ -302,6 +432,7 @@ export class AppShell {
     if (list.length === 0) return;
     const pick = list[Math.floor(Math.random() * list.length)]!;
     paramHistory.clear();
+    this.stopMorph();
     appState.setSketch(pick.id);
     appState.randomize();
     if (this.currentStudioId === pick.id && this.paneHost) {
@@ -317,6 +448,7 @@ export class AppShell {
     if (list.length === 0) return;
     const pick = list[Math.floor(Math.random() * list.length)]!;
     paramHistory.clear();
+    this.stopMorph();
     appState.setSketch(pick.id);
     appState.randomize();
     router.goStudio(pick.id);
@@ -336,6 +468,7 @@ export class AppShell {
     renderGallery(this.mainEl, {
       onOpen: (id, params) => {
         paramHistory.clear();
+        this.stopMorph();
         if (params) appState.setSketch(id, params as ParamsMap);
         else appState.setSketch(id);
         router.goStudio(id);
@@ -380,6 +513,7 @@ export class AppShell {
     renderCreditBadge(this.creditEl, module.credit);
     paramController.mount(this.paneHost, appState, module);
     this.renderMoodBar();
+    this.renderPaletteBar();
 
     fpsMonitor.reset();
     p5Host.setFrameCallback((instant) => this.onFrame(instant));
@@ -389,14 +523,18 @@ export class AppShell {
     });
 
     if (this.exportBtn) this.exportBtn.disabled = true;
+    if (this.webmBtn) this.webmBtn.disabled = true;
 
     await p5Host.mount(module, this.canvasHost, () => this.liveParams());
 
-    if (this.currentStudioId === sketchId && this.exportBtn) {
-      this.exportBtn.disabled = false;
+    if (this.currentStudioId === sketchId) {
+      if (this.exportBtn) this.exportBtn.disabled = false;
+      if (this.webmBtn) this.webmBtn.disabled = this.recording;
     }
     this.syncPauseUi();
     this.syncUndoUi();
+    this.syncMicUi();
+    this.syncPinUi();
   }
 
   private renderMoodBar(): void {
@@ -414,6 +552,32 @@ export class AppShell {
       b.addEventListener('click', () => this.applyMoodAt(i));
       this.moodHost!.appendChild(b);
     });
+    const morphBtn = document.createElement('button');
+    morphBtn.type = 'button';
+    morphBtn.className = 'btn btn-primary mood-btn';
+    morphBtn.textContent = 'Morph →';
+    morphBtn.title = 'Animate into the next mood (M)';
+    morphBtn.addEventListener('click', () => this.morphToNextMood());
+    this.moodHost.appendChild(morphBtn);
+  }
+
+  private renderPaletteBar(): void {
+    if (!this.paletteHost) return;
+    this.paletteHost.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'mood-label';
+    label.textContent = 'Palettes:';
+    this.paletteHost.appendChild(label);
+    PALETTES.forEach((pal, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn mood-btn palette-swatch';
+      b.textContent = pal.label;
+      const col = typeof pal.patch.color === 'string' ? pal.patch.color : '#888';
+      b.style.setProperty('--swatch', col);
+      b.addEventListener('click', () => this.applyPaletteAt(i));
+      this.paletteHost!.appendChild(b);
+    });
   }
 
   private buildStudioDom(): void {
@@ -423,76 +587,56 @@ export class AppShell {
     const toolbar = document.createElement('div');
     toolbar.className = 'studio-toolbar';
 
-    const back = document.createElement('button');
-    back.type = 'button';
-    back.className = 'btn';
-    back.textContent = '← Gallery';
-    back.addEventListener('click', () => router.goGallery());
-
-    const randomize = document.createElement('button');
-    randomize.type = 'button';
-    randomize.className = 'btn';
-    randomize.textContent = 'Randomize';
-    randomize.addEventListener('click', () => this.doRandomize());
-
-    this.undoBtn = document.createElement('button');
-    this.undoBtn.type = 'button';
-    this.undoBtn.className = 'btn';
-    this.undoBtn.textContent = 'Undo';
-    this.undoBtn.disabled = true;
-    this.undoBtn.addEventListener('click', () => this.doUndo());
-
-    const reset = document.createElement('button');
-    reset.type = 'button';
-    reset.className = 'btn';
-    reset.textContent = 'Reset';
-    reset.addEventListener('click', () => this.doReset());
-
-    this.pauseBtn = document.createElement('button');
-    this.pauseBtn.type = 'button';
-    this.pauseBtn.className = 'btn';
-    this.pauseBtn.textContent = this.paused ? 'Play' : 'Pause';
-    this.pauseBtn.setAttribute('aria-pressed', this.paused ? 'true' : 'false');
-    this.pauseBtn.addEventListener('click', () => this.togglePause());
-
-    const full = document.createElement('button');
-    full.type = 'button';
-    full.className = 'btn';
-    full.textContent = 'Fullscreen';
-    full.addEventListener('click', () => void this.toggleFullscreen());
-
-    const fav = document.createElement('button');
-    fav.type = 'button';
-    fav.className = 'btn';
-    fav.textContent = '★ Favorite';
-    fav.addEventListener('click', () => this.saveFavorite());
-
-    const copy = document.createElement('button');
-    copy.type = 'button';
-    copy.className = 'btn btn-primary';
-    copy.textContent = 'Copy link';
-    copy.addEventListener('click', () => void this.copyLink());
-
-    this.exportBtn = document.createElement('button');
-    this.exportBtn.type = 'button';
-    this.exportBtn.className = 'btn btn-primary';
-    this.exportBtn.textContent = 'Export PNG';
-    this.exportBtn.addEventListener('click', () => this.doExport());
+    const mk = (label: string, cls = 'btn', onClick: () => void) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = cls;
+      b.textContent = label;
+      b.addEventListener('click', onClick);
+      return b;
+    };
 
     toolbar.append(
-      back,
-      randomize,
-      this.undoBtn,
-      reset,
-      this.pauseBtn,
-      full,
-      fav,
-      copy,
-      this.exportBtn,
+      mk('← Gallery', 'btn', () => router.goGallery()),
+      mk('Randomize', 'btn', () => this.doRandomize()),
     );
+
+    this.undoBtn = mk('Undo', 'btn', () => this.doUndo());
+    this.undoBtn.disabled = true;
+    toolbar.append(this.undoBtn);
+
+    toolbar.append(
+      mk('Reset', 'btn', () => this.doReset()),
+    );
+
+    this.pauseBtn = mk(this.paused ? 'Play' : 'Pause', 'btn', () => this.togglePause());
+    this.pauseBtn.setAttribute('aria-pressed', this.paused ? 'true' : 'false');
+    toolbar.append(this.pauseBtn);
+
+    toolbar.append(mk('Fullscreen', 'btn', () => void this.toggleFullscreen()));
+
+    this.pinBtn = mk('Pin compare', 'btn', () => this.togglePin());
+    toolbar.append(this.pinBtn);
+
+    this.micBtn = mk('Mic', 'btn', () => void this.toggleMic());
+    toolbar.append(this.micBtn);
+
+    toolbar.append(mk('★ Favorite', 'btn', () => this.saveFavorite()));
+
+    const copy = mk('Copy link', 'btn btn-primary', () => void this.copyLink());
+    toolbar.append(copy);
+
+    this.exportBtn = mk('Export PNG', 'btn btn-primary', () => this.doExport());
+    toolbar.append(this.exportBtn);
+
+    this.webmBtn = mk('Loop 3s', 'btn btn-primary', () => void this.doWebm());
+    toolbar.append(this.webmBtn);
 
     this.moodHost = document.createElement('div');
     this.moodHost.className = 'mood-bar';
+
+    this.paletteHost = document.createElement('div');
+    this.paletteHost.className = 'mood-bar palette-bar';
 
     this.fpsEl = document.createElement('div');
     this.fpsEl.className = 'fps-banner';
@@ -500,48 +644,68 @@ export class AppShell {
 
     this.creditEl = document.createElement('div');
 
-    const layout = document.createElement('div');
-    layout.className = 'studio-layout';
+    this.layoutEl = document.createElement('div');
+    this.layoutEl.className = 'studio-layout';
+
+    this.pinHost = document.createElement('div');
+    this.pinHost.className = 'pin-host';
+    this.pinHost.hidden = true;
 
     this.canvasHost = document.createElement('div');
     this.canvasHost.className = 'canvas-host';
     this.canvasHost.setAttribute('aria-label', 'Sketch canvas');
+
+    const stage = document.createElement('div');
+    stage.className = 'studio-stage';
+    stage.append(this.pinHost, this.canvasHost);
 
     const side = document.createElement('div');
     side.className = 'studio-side';
 
     this.paneHost = document.createElement('div');
     this.paneHost.className = 'pane-host';
+    side.append(this.paneHost);
+
+    this.layoutEl.append(stage, side);
 
     this.statusEl = document.createElement('div');
     this.statusEl.className = 'status-line';
     this.statusEl.setAttribute('role', 'status');
     this.statusEl.setAttribute('aria-live', 'polite');
 
-    side.append(this.paneHost);
-    layout.append(this.canvasHost, side);
     this.mainEl.append(
       toolbar,
       this.moodHost,
+      this.paletteHost,
       this.fpsEl,
       this.creditEl,
-      layout,
+      this.layoutEl,
       this.statusEl,
     );
   }
 
   private teardownStudio(): void {
+    this.stopMorph();
+    if (micReactor.isActive) micReactor.stop();
     p5Host.dispose();
     paramController.dispose();
     this.canvasHost = null;
+    this.pinHost = null;
+    this.layoutEl = null;
     this.paneHost = null;
     this.creditEl = null;
     this.fpsEl = null;
     this.statusEl = null;
     this.moodHost = null;
+    this.paletteHost = null;
     this.exportBtn = null;
+    this.webmBtn = null;
     this.pauseBtn = null;
     this.undoBtn = null;
+    this.micBtn = null;
+    this.pinBtn = null;
+    this.pinned = false;
+    this.recording = false;
     if (this.urlTimer !== null) {
       window.clearTimeout(this.urlTimer);
       this.urlTimer = null;
@@ -569,7 +733,7 @@ export class AppShell {
       renderFpsBanner(this.fpsEl, status.fps, status.warn);
     }
 
-    if (!status.shouldClampDensity) return;
+    if (!status.shouldClampDensity || this.morphing) return;
 
     const now = performance.now();
     if (now - this.lastClampAt < AppConfig.fpsSampleWindowMs) return;
@@ -624,6 +788,38 @@ export class AppShell {
     const id = appState.getSketchId() ?? 'sketch';
     const ok = exportPng(p5Host.getCanvas(), id);
     this.flashStatus(ok ? 'PNG downloaded.' : 'Export failed — canvas not ready.');
+  }
+
+  private async doWebm(): Promise<void> {
+    if (this.recording) return;
+    const id = appState.getSketchId() ?? 'sketch';
+    const canvas = p5Host.getCanvas();
+    if (!canvas) {
+      this.flashStatus('Canvas not ready.');
+      return;
+    }
+    // Ensure motion for recording
+    if (this.paused) {
+      this.paused = false;
+      this.syncPauseUi();
+    }
+    this.recording = true;
+    if (this.webmBtn) {
+      this.webmBtn.disabled = true;
+      this.webmBtn.textContent = 'Recording…';
+    }
+    this.flashStatus('Recording 3s loop…');
+    const result = await exportWebmLoop(canvas, id, { durationMs: 3000 });
+    this.recording = false;
+    if (this.webmBtn) {
+      this.webmBtn.disabled = false;
+      this.webmBtn.textContent = 'Loop 3s';
+    }
+    if (result.ok) {
+      this.flashStatus(`Loop saved (${result.mimeType ?? 'video'}).`);
+    } else {
+      this.flashStatus(`Loop failed: ${result.error ?? 'unknown'}`);
+    }
   }
 
   private flashStatus(msg: string): void {

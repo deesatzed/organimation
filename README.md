@@ -60,12 +60,15 @@ Credits also appear in the studio UI under each sketch.
 
 - Gallery of **9** runnable sketches with **live thumbnails**
 - English-named sliders (Tweakpane)
-- **Moods:** Calm / Wild / Neon / Night / Ember
+- **Moods** + **Morph →** animated transition
+- **Palettes:** Ice / Mint / Violet / Sunset / Gold / Mono
 - Randomize / **Undo** / Reset / Pause–Play
 - **★ Favorite** (localStorage, this browser)
-- **Surprise me** + **Ambient Shuffle** (auto-remix wallpaper mode)
-- Fullscreen canvas
-- Keyboard shortcuts (see header)
+- **Pin compare** (still left vs live right)
+- **Loop 3s** WebM export (real canvas capture)
+- **Mic** optional — speed reacts to sound
+- **Surprise me** + **Ambient Shuffle**
+- Fullscreen canvas + keyboard shortcuts (see header)
 - PNG export + share URL
 - Density caps + FPS warning when slow
 - `prefers-reduced-motion` starts paused

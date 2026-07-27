@@ -191,6 +191,14 @@ button:focus-visible,
   font-size: 0.85rem;
 }
 
+.palette-swatch {
+  border-left: 4px solid var(--swatch, var(--accent));
+}
+
+.palette-bar {
+  margin-top: -0.25rem;
+}
+
 .canvas-host:fullscreen {
   max-width: none;
   width: 100%;
@@ -316,9 +324,52 @@ button:focus-visible,
 
 .studio-layout {
   display: grid;
-  grid-template-columns: minmax(0, 400px) minmax(240px, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 1fr);
   gap: 1rem;
   align-items: start;
+}
+
+.studio-stage {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.pin-host {
+  width: 100%;
+  max-width: 400px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+
+.pin-host img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+.pin-caption {
+  margin: 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border);
+}
+
+.studio-layout.compare-on .studio-stage {
+  flex-wrap: nowrap;
+}
+
+.studio-layout.compare-on .pin-host,
+.studio-layout.compare-on .canvas-host {
+  max-width: calc(50% - 0.4rem);
+  flex: 1 1 180px;
 }
 
 .canvas-host {
