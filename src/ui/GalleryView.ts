@@ -123,13 +123,17 @@ function card(
   thumb.className = 'gallery-thumb';
   thumb.setAttribute('aria-hidden', 'true');
   const img = document.createElement('img');
-  img.alt = '';
-  img.loading = 'lazy';
-  img.width = 160;
-  img.height = 160;
+  img.alt = `${sketch.credit.title} preview`;
+  img.width = 200;
+  img.height = 200;
+  img.decoding = 'async';
   thumb.appendChild(img);
-  void thumbnailFor(sketch).then((url) => {
-    if (url) img.src = url;
+  // Eager real p5 render at full coordinate space, then scaled (not black placeholder)
+  void thumbnailFor(sketch, 200).then((url) => {
+    if (url) {
+      img.src = url;
+      img.classList.add('thumb-ready');
+    }
   });
 
   const title = document.createElement('h2');
