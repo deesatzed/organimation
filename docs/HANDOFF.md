@@ -40,7 +40,8 @@ npm run smoke
 - `AppState` = single truth for id + params  
 - `P5Host` dynamic-imports p5; dispose on navigate  
 - Sketches (9): creature-flow, lozi-flow, ripple-field, orbital-rects, wave-lattice, spiral-bloom, ink-tendrils, pulse-rings, aurora-veil
-- Play features: moods, morph, palettes, undo, favorites, pin compare, WebM + GIF, mic, ambient, paste→sliders, thumbs
+- Play features: moods, morph, palettes, undo, favorites, pin compare, WebM + GIF, mic, ambient, paste→sliders
+- Gallery previews: static GIFs in `public/thumbs/` (regenerate with `npm run thumbs`)
 
 ## Docs
 

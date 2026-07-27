@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "selfcheck": "npx tsx src/app/AppState.selfcheck.ts && npx tsx src/share/urlState.selfcheck.ts && npx tsx src/runtime/FpsMonitor.selfcheck.ts && npx tsx src/lib/morph.selfcheck.ts && npx tsx src/paste/parseNumbers.selfcheck.ts",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "thumbs": "node scripts/generate-thumbs.mjs"
   },
   "dependencies": {
     "@tweakpane/core": "^2.0.5",

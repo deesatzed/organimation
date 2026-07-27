@@ -5,7 +5,6 @@ import {
   removeFavorite,
   type FavoriteItem,
 } from '../lib/favorites';
-import { thumbnailFor } from './thumbnails';
 
 export interface GalleryHandlers {
   onOpen: (id: string, params?: Record<string, unknown>) => void;
@@ -124,17 +123,18 @@ function card(
   thumb.setAttribute('aria-hidden', 'true');
   const img = document.createElement('img');
   img.alt = `${sketch.credit.title} preview`;
-  img.width = 200;
-  img.height = 200;
+  img.width = 220;
+  img.height = 220;
   img.decoding = 'async';
+  img.loading = 'lazy';
+  // Static GIF previews (public/thumbs) — reliable on GitHub Pages
+  img.src = `./thumbs/${sketch.id}.gif`;
+  img.classList.add('thumb-ready');
+  img.onerror = () => {
+    // Fallback still if a gif is missing
+    img.src = `./thumbs/${sketch.id}.png`;
+  };
   thumb.appendChild(img);
-  // Eager real p5 render at full coordinate space, then scaled (not black placeholder)
-  void thumbnailFor(sketch, 200).then((url) => {
-    if (url) {
-      img.src = url;
-      img.classList.add('thumb-ready');
-    }
-  });
 
   const title = document.createElement('h2');
   title.textContent = sketch.credit.title;

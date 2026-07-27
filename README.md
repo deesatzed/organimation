@@ -32,6 +32,14 @@ Self-checks (params clamps + URL round-trip):
 npm run selfcheck
 ```
 
+Regenerate gallery GIFs (preview server must be running on :4173):
+
+```bash
+npm run build && npm run preview -- --host 127.0.0.1 --port 4173
+# other terminal:
+npm run thumbs
+```
+
 ## Stack
 
 - Vite + TypeScript
@@ -58,7 +66,7 @@ Credits also appear in the studio UI under each sketch.
 
 ## Features
 
-- Gallery of **9** runnable sketches with **live thumbnails**
+- Gallery of **9** runnable sketches with **static GIF previews** (`public/thumbs/`)
 - English-named sliders (Tweakpane)
 - **Moods** + **Morph →** animated transition
 - **Palettes:** Ice / Mint / Violet / Sunset / Gold / Mono

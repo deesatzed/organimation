@@ -38,6 +38,35 @@ await page.waitForSelector('.gallery-card', { timeout: 10000 });
 const cards = await page.locator('.gallery-card').count();
 assert(cards >= 9, `gallery cards ${cards} (expected ≥9)`);
 
+// Static GIF thumbs must load (not runtime black canvases)
+const thumbInfo = await page.evaluate(async () => {
+  const imgs = [...document.querySelectorAll('.gallery-thumb img')];
+  const out = [];
+  for (const img of imgs) {
+    const src = img.getAttribute('src') || '';
+    const okSrc = src.includes('/thumbs/') && src.endsWith('.gif');
+    // wait a tick for network
+    await new Promise((r) => {
+      if (img.complete && img.naturalWidth > 0) return r(null);
+      img.onload = () => r(null);
+      img.onerror = () => r(null);
+      setTimeout(() => r(null), 4000);
+    });
+    out.push({
+      src,
+      okSrc,
+      w: img.naturalWidth,
+      h: img.naturalHeight,
+    });
+  }
+  return out;
+});
+const badThumbs = thumbInfo.filter((t) => !t.okSrc || t.w < 8);
+assert(
+  badThumbs.length === 0,
+  `bad thumbs: ${JSON.stringify(badThumbs.slice(0, 3))}`,
+);
+
 // --- Integration: Switch A→B→A, single canvas ---
 await openCard(page, 0);
 const titleA = (await page.locator('.credit-badge strong').innerText()).trim();

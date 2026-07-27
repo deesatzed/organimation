@@ -1,3 +1,8 @@
+/**
+ * Runtime thumbnail helper (optional).
+ * Gallery cards use committed static GIFs in `public/thumbs/` instead —
+ * regenerate with `npm run thumbs`. This module is kept for ad-hoc capture only.
+ */
 import type { ParamsMap, SketchModule } from '../sketches/types';
 import { defaultsFromSchema } from '../sketches/types';
 import { AppConfig } from '../config';
@@ -8,9 +13,7 @@ const cache = new Map<string, string>();
 let chain: Promise<unknown> = Promise.resolve();
 
 /**
- * Render a real thumbnail for a sketch module.
- * Steps draw() manually (browsers throttle rAF for off-screen nodes, which
- * previously produced all-black gallery cards).
+ * Render a one-off data-URL thumbnail (not used by gallery).
  */
 export async function thumbnailFor(
   module: SketchModule,

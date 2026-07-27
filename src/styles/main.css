@@ -183,9 +183,8 @@ button:focus-visible,
   background: #050608;
 }
 
-.gallery-thumb img:not([src]),
-.gallery-thumb img[src=''] {
-  opacity: 0;
+.gallery-thumb img.thumb-ready {
+  opacity: 1;
 }
 
 .mood-bar {
